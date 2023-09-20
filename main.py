@@ -1,56 +1,10 @@
-import json
-import requests
-import gi
+"""Module implements a system tray using GTK-3"""
+
+import threading, requests, textwrap3, gi, warnings
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk
 
-def random_quote():
-    print('hello')
-    url = "https://zenquotes.io/api/random/"
-
-    data = requests.get(url)
-
-    print(data.json())
-    
-    return data.json()
-
-
-def retrieve_data():
-    url = "https://zenquotes.io/api/random/"
-
-    quote_data = requests.get(url)
-
-    quote_data = quote_data.json()
-
-
-    data = requests.get('https://ipinfo.io')
-    city = data.json().get('city')
-
-    url = "https://api.weatherapi.com/v1/forecast.json"
-
-    querystring = {"key":"d0e9895575b34ce58f913230232009", "q": city, "days": 2, "aqi": "no", "alerts":"yes"}
-
-    headers = {
-        "Content-Type": "application/json"
-    }
-
-    response = requests.get(url, headers=headers, params=querystring)
-    
-    try:
-        if response.json():
-            data = response.json()
-            return ([data.get('forecast')['forecastday'][0]['day'], data['location']['name']], quote_data)
-    except Exception:
-        return None
-
-weather_response = None
-random_quote = None
-
-try:
-    weather_response = retrieve_data()[0]
-    random_quote = retrieve_data()[1]
-except Exception:
-    pass
+warnings.filterwarnings("ignore", category=DeprecationWarning) # filter out deprecation warnings, comment out to see them if need be
 
 class MainWindow(Gtk.Window):
     """main window class"""
@@ -106,6 +60,7 @@ class MainWindow(Gtk.Window):
 
 class Popup(Gtk.Dialog):
     def __init__(self, parent, item_text):
+        """Popup Window Class"""
         Gtk.Dialog.__init__(self, item_text, parent, Gtk.DialogFlags.MODAL, (
             Gtk.STOCK_OK, Gtk.ResponseType.OK
         ))
@@ -118,11 +73,13 @@ class Popup(Gtk.Dialog):
         grid = Gtk.Grid()
         area.add(grid)
         
-        if item_text == 'Weather Report':
+        if item_text == 'Weather Report' or item_text == "Random Quote":
             greeting_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
+            greeting = "Will it rain today?" if item_text == "Weather Report" else "Your daily dose of inspiration"
+
             label_greeting = Gtk.Label()
-            label_greeting.set_markup("<big>Will it rain today?</big>")
+            label_greeting.set_markup(f"<b>{greeting}</b>")
             label_greeting.set_halign(Gtk.Align.START)
             
             greeting_box.pack_start(label_greeting, True, True, 10)
@@ -130,79 +87,69 @@ class Popup(Gtk.Dialog):
             grid.add(greeting_box)
             
             global weather_response
-            
-            if weather_response:
-                location= f"- Location: {weather_response[1]}"
-                likely = "- Report: Likely" if weather_response[0]["daily_will_it_rain"] > 0 else "- Unlikely"
-                expectation = f"- Detail: Expect {weather_response[0]['condition']['text'].lower()} today"
-                
-                weather_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-                
-                label_location = Gtk.Label(label=location)
-                label_location.set_halign(Gtk.Align.START)
-                
-                label_likely = Gtk.Label(label=likely)
-                label_likely.set_halign(Gtk.Align.START)
-                
-                label_expectation = Gtk.Label(label=expectation)
-                label_expectation.set_halign(Gtk.Align.START)
+     
+            network_thread = threading.Thread(target=self.retrieve_data, args=[item_text])
+            network_thread.daemon = True
+            network_thread.start()
 
-                weather_box.pack_start(label_location, True, True, 0)
-                weather_box.pack_start(label_likely, True, True, 0)
-                weather_box.pack_start(label_expectation, True, True, 0)
-
-                grid.attach_next_to(weather_box, greeting_box, Gtk.PositionType.BOTTOM, 80, 3)
-            else:
-                weather_box = Gtk.Box()
-                label_network = Gtk.Label(label="Unable to fetch data.\nMake sure you have internet connection.")
-                label_network.set_halign(Gtk.Align.START)
-                weather_box.pack_start(label_network, True, True, 0)
-                grid.attach_next_to(weather_box, greeting_box, Gtk.PositionType.BOTTOM, 20, 3)
-
-        elif item_text == 'Random Quote':
-            global random_quote
-            
-            if random_quote:
-                quote= f"{random_quote[0]['q']}"
-                author= f"- {random_quote[0]['a']}"
-
-                title_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-                title_box.set_size_request(80, 150)
-
-                label_title = Gtk.Label()
-                label_title.set_markup("<big>Your daily dose of inspiration</big>")
-                label_title.set_halign(Gtk.Align.START)
-                
-                label_quote = Gtk.Label(label=f"{quote}")
-                label_quote.set_width_chars(60)
-                label_quote.set_halign(Gtk.Align.START)
-                
-                label_author = Gtk.Label()
-                label_author.set_markup(f"<small>{author}</small>")
-                label_author.set_halign(Gtk.Align.START)
-
-                title_box.pack_start(label_title, True, True, 0)
-                title_box.pack_start(label_quote, False, False, 0)
-                title_box.pack_start(label_author, True, True, 0)
-
-                grid.add(title_box)
-            else:
-                title_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-                
-                label_title = Gtk.Label()
-                label_title.set_markup("<big>Your daily dose of inspiration</big>")
-                label_title.set_halign(Gtk.Align.START)
-                
-                label_network = Gtk.Label(label="Unable to fetch data.\nMake sure you have internet connection.")
-                label_network.set_halign(Gtk.Align.START)
-
-                title_box.pack_start(label_title, True, True, 5)
-                title_box.pack_start(label_network, True, True, 0)
-                grid.add(title_box)
+            # show loading screen while api request is ongoing
+            self.header_box = Gtk.Box()
+            self.label_network = Gtk.Label(label="Loading ...")
+            self.label_network.set_halign(Gtk.Align.START)
+            self.header_box.pack_start(self.label_network, True, True, 0)
+            grid.attach_next_to(self.header_box, greeting_box, Gtk.PositionType.BOTTOM, 20, 3)
+        else:
+            Gtk.main_quit()
             
         self.show_all()
+    
+    def retrieve_data(self, item_text):
+        # retrieve quote data
+        url = "https://zenquotes.io/api/random/"
 
+        quote_data = requests.get(url)
 
+        quote_data = quote_data.json()
+
+        # retrieve city data
+        data = requests.get('https://ipinfo.io')
+        city = data.json().get('city')
+
+        # retrieve weather data
+        url = "https://api.weatherapi.com/v1/forecast.json"
+
+        querystring = {"key":"d0e9895575b34ce58f913230232009", "q": city, "days": 2, "aqi": "no", "alerts":"yes"}
+
+        headers = {
+            "Content-Type": "application/json"
+        }
+
+        response = requests.get(url, headers=headers, params=querystring)
+        
+        try:
+            if response.json():
+                data = response.json()
+                weather_response = [data.get('forecast')['forecastday'][0]['day'], data['location']['name']]
+                random_quote = quote_data
+                
+                Gdk.threads_enter()
+                
+                # display data
+                if item_text == "Weather Report":
+                    isLikely = "Likely" if weather_response[0]["daily_will_it_rain"] > 0 else "Unlikely"
+                    
+                    self.label_network.set_text(f"- Location: {weather_response[1]}\n- Report: {isLikely}\n- Detail: Expect {weather_response[0]['condition']['text'].lower()} today")
+                elif item_text == "Random Quote":
+                    quote = random_quote[0]['q']
+                    formatted_quote = textwrap3.fill(quote, width=60)
+                 
+                    self.label_network.set_text(f"{formatted_quote}\n\n- {random_quote[0]['a']}")
+
+                Gdk.threads_leave()
+        except Exception as e:
+            self.label_network.set_text("Unable to fetch weather details.\nCheck your internet connection.")
+     
+        
 window = MainWindow()
 window.connect('delete-event', Gtk.main_quit)
 Gtk.main()

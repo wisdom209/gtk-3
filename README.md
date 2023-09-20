@@ -33,7 +33,7 @@ Before running this application, ensure you have the following prerequisites ins
 ## Usage
 `python3 main.py`
 
-You will see a system tray icon with an associated popup menu. Clicking on "Weather Report" or "Random Quote" will display relevant information in a dialog.
+You will see a system tray icon with an associated popup menu. Double clicking on  the system tray icon shows a popup menu. Clicking "Weather Report" or "Random Quote" will display relevant information in a dialog. Clicking on exit with shut down the system tray.
 
 
 ## Limitations
