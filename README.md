@@ -24,7 +24,7 @@ Run `sudo apt install libgtk-3-dev` if not available
 1. Clone the repository to your local machine:
 
    ```bash
-   git clone https://github.com/wisdom209/gtk-popup-menu.git
+   git clone https://github.com/wisdom209/gtk-3.git
    cd gtk-3
 2. Install the needeed packages
 `pip install -r requirements.txt`
