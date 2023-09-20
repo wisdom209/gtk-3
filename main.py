@@ -105,28 +105,29 @@ class Popup(Gtk.Dialog):
     
     def retrieve_data(self, item_text):
         # retrieve quote data
-        url = "https://zenquotes.io/api/random/"
-
-        quote_data = requests.get(url)
-
-        quote_data = quote_data.json()
-
-        # retrieve city data
-        data = requests.get('https://ipinfo.io')
-        city = data.json().get('city')
-
-        # retrieve weather data
-        url = "https://api.weatherapi.com/v1/forecast.json"
-
-        querystring = {"key":"d0e9895575b34ce58f913230232009", "q": city, "days": 2, "aqi": "no", "alerts":"yes"}
-
-        headers = {
-            "Content-Type": "application/json"
-        }
-
-        response = requests.get(url, headers=headers, params=querystring)
-        
         try:
+            url = "https://zenquotes.io/api/random/"
+
+            quote_data = requests.get(url)
+
+            quote_data = quote_data.json()
+
+            # retrieve city data
+            data = requests.get('https://ipinfo.io')
+            city = data.json().get('city')
+
+            # retrieve weather data
+            url = "https://api.weatherapi.com/v1/forecast.json"
+
+            querystring = {"key":"d0e9895575b34ce58f913230232009", "q": city, "days": 2, "aqi": "no", "alerts":"yes"}
+
+            headers = {
+                "Content-Type": "application/json"
+            }
+
+            response = requests.get(url, headers=headers, params=querystring)
+            
+            
             if response.json():
                 data = response.json()
                 weather_response = [data.get('forecast')['forecastday'][0]['day'], data['location']['name']]
@@ -142,14 +143,14 @@ class Popup(Gtk.Dialog):
                 elif item_text == "Random Quote":
                     quote = random_quote[0]['q']
                     formatted_quote = textwrap3.fill(quote, width=60)
-                 
+                
                     self.label_network.set_text(f"{formatted_quote}\n\n- {random_quote[0]['a']}")
 
                 Gdk.threads_leave()
         except Exception as e:
             self.label_network.set_text("Unable to fetch weather details.\nCheck your internet connection.")
      
-        
-window = MainWindow()
-window.connect('delete-event', Gtk.main_quit)
-Gtk.main()
+if __name__ == "__main__":    
+    window = MainWindow()
+    window.connect('delete-event', Gtk.main_quit)
+    Gtk.main()
