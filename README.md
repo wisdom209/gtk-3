@@ -15,9 +15,9 @@ This project demonstrates the use of GTK (GIMP Toolkit) in Python to create a sy
 Before running this application, ensure you have the following prerequisites installed on your system:
 
 - Python 3.7 and above
-- GTK 3 library (usually included with Linux distributions)
+- GTK 3 library (usually included with Linux distributions). Run `sudo apt install libgtk-3-dev` if not available
 - [PyGObject](https://pygobject.readthedocs.io/) - Python bindings for GObject introspection libraries.
-Run `sudo apt install libgtk-3-dev` if not available
+
 
 ## Installation
 
